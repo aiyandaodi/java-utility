@@ -1,0 +1,275 @@
+/**
+	 * 取得客户端操作系统浏览器信息。<br>
+	 * 格式：“操作设备;操作系统;浏览器;”
+	 * 
+	 * @param request
+	 *            服务请求
+	 * @return os 操作系统浏览器信息
+	 */
+	public static String GetGuestInfo(HttpServletRequest request) {
+		String agent = null;
+		if (request != null) {
+			agent = request.getHeader("User-Agent");
+			if (agent == null || agent.isEmpty() || agent.equalsIgnoreCase("unknown"))
+				agent = request.getHeader("user-agent");
+		} // end if (request != null)
+		
+		if (agent != null && !agent.isEmpty()) {
+			String[] info = new String[3];    // [0] - 操作设备；[1] - 操作系统；[2] - 浏览器
+			
+			// 设备、操作系统
+			int start = agent.indexOf("(");
+			int end = agent.indexOf(")");
+			if (start > 0 && end > 0 && start < end) {
+				String str = agent.substring(start + 1, end);
+				
+				int loc = str.indexOf("Windows");
+				if (loc >= 0) {
+					// Windows
+					info[0] = "";
+					
+					int loc2 = str.indexOf(";", loc);
+					if (loc2 > loc) {
+						info[1] = str.substring(loc, loc2);					
+						if (info[1].indexOf("6.2") > 0
+								|| info[1].indexOf("6.3") > 0)
+							info[1] = "Windows 8";
+						else if (info[1].indexOf("6.1") > 0)
+							info[1] = "Windows 7";
+						else if (info[1].indexOf("6.0") > 0)
+							info[1] = "Windows Vista";
+						else if (info[1].indexOf("5.1") > 0)
+							info[1] = "Windows XP";
+						else if (info[1].indexOf("10.") > 0)
+							info[1] = "Windows 10";
+						else
+							info[1] = "Other Windows";
+					} // end if (loc2 > loc)
+					
+				} else if (str.indexOf("Android") >= 0) {
+					// Android
+					String[] array = DataUtility.StringToArray(str, ";");
+					if (array != null && array.length > 0) {
+						for (int i = 0; i < array.length; i++) {
+							if (array[i] == null)
+								continue;
+							
+							if (array[i].indexOf("Android") >= 0) {
+								info[1] = array[i];
+								if (info[0] != null)
+									break;
+							//else if (array[i].indexOf("Linux") < 0)
+							//	info[0] = array[i];
+							} else {
+								int dloc = array[i].indexOf("Build");
+								if (dloc > 0) {
+									info[0] = array[i].substring(0, dloc);
+									if (info[1] != null)
+										break;
+								}
+							}
+						}
+					} // end if (array != null && array.length > 0)
+					
+				} else if (str.indexOf("iPad") >= 0) {
+					// IPAD
+					info[0] = "IPad";
+					info[1] = GetAppleOS(str);
+					
+				} else if (str.indexOf("iPhone") >= 0) {
+					// IPhone
+					info[0] = "IPhone";
+					info[1] = GetAppleOS(str);
+					
+				} else if (str.indexOf("Mac") >= 0) {
+					// Mac
+					String[] array = DataUtility.StringToArray(str, ";");
+					if (array != null && array.length >= 2) {
+						info[0] = array[0];
+						info[1] = array[1];
+					} else {
+						info[0] = "Other Mac";
+					} // end if (array != null && array.length >= 2) else
+
+				} else if (str.indexOf("Linux") >= 0) {
+					// Linux
+					info[0] = "Linux";
+					
+				} else if (str.indexOf("MSIE") >= 0) {
+					// IE
+					info[0] = "";
+					info[1] = "Windows";
+					
+				} else if (str.startsWith("BB")) {
+					// BlackBerry
+					info[0] = "BlackBerry";
+					String[] array = DataUtility.StringToArray(str, ";");
+					if (array != null && array.length > 0) {
+						for (int i = 0; i < array.length; i++) {
+							if (array[i] != null && array[i].indexOf("BB") >= 0) {
+								info[1] = array[i];
+								break;
+							}
+						}
+					} // end if (array != null && array.length > 0)
+				} // end if
+			} // end if (start > 0 && end > 0 && start < end)
+			
+			//浏览器
+			info[2] = GetExplorer(agent);
+			
+			StringBuilder sb = new StringBuilder();
+			if(info[0] != null)
+				sb.append(info[0]);
+			sb.append(";");
+			if(info[1] != null)
+				sb.append(info[1]);
+			sb.append(";");
+			if(info[2] != null)
+				sb.append(info[2]);
+			sb.append(";");
+			agent = sb.toString();
+		} // end if (os != null && !os.isEmpty())
+		
+		return agent;
+	}
+	
+	/**
+	 * 取得IPad、IPhone操作系统。
+	 * 
+	 * @param str
+	 *            字符串
+	 * @return 返回返回操作系统。
+	 */
+	private static String GetAppleOS(String str) {
+		StringBuilder sb = new StringBuilder();
+		
+		boolean blank = false;
+		
+		int loc = str.indexOf("OS");
+		for (int i = loc; i < str.length(); i++) {
+			char ch = str.charAt(i);
+
+			if (ch == ' ') {
+				if (blank)
+					break;
+				else
+					blank = true;
+			}
+			
+			sb.append(ch);
+		} // end for (int i = loc; i < str.length(); i++)
+
+		return sb.toString();
+	}
+	
+	/**
+	 * 取得浏览器名称。
+	 * 
+	 * @param str
+	 *            字符串
+	 * @return 返回浏览器。
+	 */
+	private static String GetExplorer(String str) {
+		String explorer = null;
+		
+		int loc = str.indexOf("Firefox");
+		if (loc >= 0) {
+			// Firefox
+			explorer = str.substring(loc);
+			
+		} else {
+			
+			loc = str.indexOf("SE");
+			if (loc >= 0) {
+				// Sougou Explorer
+				explorer = "Sougou";
+
+			} else {
+				loc = str.indexOf("Chrome");
+				if (loc >= 0) {
+					// Chrome
+					StringBuilder sb = new StringBuilder();
+					for (int i = loc; i < str.length(); i++) {
+						char ch = str.charAt(i);
+						if (ch != ' ')
+							sb.append(ch);
+						else
+							break;
+					}
+					explorer = sb.toString();
+
+				} else {
+					loc = str.indexOf("Mobile Safari");
+					if (loc >= 0) {
+						// Mobile Safari
+						explorer = str.substring(loc);
+
+					} else {
+						loc = str.indexOf("MSIE");
+						if (loc >= 0) {
+							// IE
+							StringBuilder sb = new StringBuilder();
+							for (int i = loc; i < str.length(); i++) {
+								char ch = str.charAt(i);
+								if (ch != ';')
+									sb.append(ch);
+								else
+									break;
+							}
+							explorer = sb.toString();
+
+						} else {
+							loc = str.indexOf("Safari");
+							if (loc >= 0)
+								explorer = str.substring(loc);
+						}
+					} // end if (loc >= 0) else
+				}
+			} // end if (loc >= 0) else
+		} // end if (loc >= 0) else
+		
+		return explorer;
+	}
+
+/**
+	 * 将一个以delim分隔的字符串，转换成字符串数组。 数组中的每个元素是被分隔的字符串。
+	 * 
+	 * @param s
+	 *            以delim分隔的字符串。
+	 * @param delim
+	 *            包含分隔符的字符串。
+	 * @return Vector
+	 */
+	public static final String[] StringToArray(String s, String delim) {
+		String[] array = null;
+		Vector<String> v = StringToVector(s, delim);
+		if (v != null && v.size() > 0) {
+			array = new String[v.size()];
+			for (int i = 0; i < v.size(); i++) {
+				array[i] = (String) v.get(i);
+			}
+		}
+		return array;
+	}
+
+/**
+	 * 将一个以delim分隔的字符串，转换成数组。数组中的每个元素是被分隔的字符串。
+	 * 
+	 * @param s
+	 *            以delim分隔的字符串。
+	 * @param delim
+	 *            包含分隔符的字符串。
+	 * @return Vector
+	 */
+	public static Vector<String> StringToVector(String s, String delim) {
+		Vector<String> v = null;
+
+		if (s != null) {
+			v = new Vector<String>();
+			StringTokenizer st = new StringTokenizer(s, delim);
+			while (st.hasMoreTokens())
+				v.add((String) (st.nextToken()));
+		}
+		return v;
+	}
